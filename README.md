@@ -14,66 +14,35 @@ One of the common issue our react js app has is that clients has to do browser h
 When building React js project, it will hash the files automatically. All you need to do is: npm run build — prod and you’ll get bunch of files in your /build/ folder, one of them being /build/static/js/main.somehash.js. This is the file we care about as this holds all of our own JS. There are bunch of other files too that get generated during the build process, but we’ll focus on the main.js
 
 
-##Create a /build/post-build.js file:
+## Steps 
+
+1) Create a /build/post-build.js file.
+
+2) This file is run after react build, so production build command npm run build — prod && npm run post-build. post-build is just a script in our package.json:"post-build": "node ./auto-reload/post-build.js && cp ./auto-reload/* './build/'"
+
+3) After running this script, you should have version.json in the /build/ folder with something like:
 
 ````
-const path = require('path');
-const fs = require('fs');
-const util = require('util');
-// get application version from package.json
-const appVersion = require('../package.json').version;
-// promisify core API's
-const readDir = util.promisify(fs.readdir);
-const writeFile = util.promisify(fs.writeFile);
-const readFile = util.promisify(fs.readFile);
-console.log('\nRunning post-build tasks');
-// our version.json will be in the auto-reload folder
-const versionFilePath = path.join(__dirname + '/../auto-reload/version.json');
-let mainHash = '';
-let mainBundleFile = '';
+{"version": "0.1.0", "hash": "08f513ec"}
+````
 
-// read the build folder files and find the one we're looking for
-readDir(path.join(__dirname, '/../build/static/js/'))
- .then(files => {
- mainBundleFile = files.find(f => {
-    if(f.startsWith('main.')){
-        return f;
+4) Create version-check.service.ts file:
+
+5) This is imported in the Application.tsx and in the ngOnInit we call initVersionCheck(Environment.VERSION_CHECK_URL);
+
+````
+componentDidMount = ()=>
+    {
+        initVersionCheck(Environment.VERSION_CHECK_URL);
     }
-    
- });
-    
- console.log(mainBundleFile)
- if (mainBundleFile) {
-    console.log("inside mainBundleFile")
- let matchHash = mainBundleFile.split(".");
- console.log(matchHash)
- // if it has a hash in it's name, mark it down
- if (matchHash.length > 1 && !!matchHash[1]) {
- mainHash = matchHash[1];
- console.log(mainHash)
- }
+````
 
- }
+6) update environment.prod.ts file:
 
-console.log(`Writing version and hash to ${versionFilePath}`);
-// write current version and hash into the version.json file
- const src = `{"version": "${appVersion}", "hash": "${mainHash}"}`;
- return writeFile(versionFilePath, src);
- }).then(() => {
- // main bundle file not found, dev build?
- if (!mainBundleFile) {
- return;
- }
-console.log(`Replacing hash in the ${mainBundleFile}`);
-// replace hash placeholder in our main.js file so the code knows it's current hash
- const mainFilepath = path.join(__dirname, '/../build/static/js/', mainBundleFile);
- return readFile(mainFilepath, 'utf8')
- .then(mainFileData => {
- const replacedFile = mainFileData.replace('{{POST_BUILD_ENTERS_HASH_HERE}}', mainHash);
- return writeFile(mainFilepath, replacedFile);
- });
- }).catch(err => {
- console.log('Error with post build:', err);
- });
+````
+export const environment = {
+production: true,
+versionCheckURL : ‘http://<<your url>>/version.json'
+};
 
 ````
